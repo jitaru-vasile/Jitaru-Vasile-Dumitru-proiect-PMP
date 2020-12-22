@@ -48,79 +48,147 @@ char hexaKeys[ROWS][COLS] = {
   {'*', '0', '#', 'D'}
 };
 char parolaIntrodusa[6];
+char masterPass[6] = {'1','3','5','7','9'};
+char mainPass[6] = {'1','2','3','4','5'};
 byte rowPins[ROWS] = {22, 24, 26, 28}; 
 byte colPins[COLS] = {30, 32, 34, 36};  
-char parolaActuala[6]={'1','2','3','4','5'};
+char pass[6]={'0','0','0','0','0'};
 Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, ROWS, COLS); 
 Servo servo;
 int angle = 10;
-int buzzer = 40;
-
-
-void verificaParola()
-{
-  int ok = 1;
-  for(int i=0;i<=5;i++)
-    if(parolaIntrodusa[i] != parolaActuala[i] )
-    {
-      lcd.setCursor(0,0);
-      lcd.print("PAROLA GRESITA");
-      ok = 0;
-      break;
-     }
-  if (ok == 1)
-  { 
-      lcd.setCursor(0,0);
-      lcd.print("PAROLA CORECTA");
-      servo.write(angle+90);
-    }
-}
+//Daca se apasa "A" -> backspace
+//Daca se apasa "B" pe tastatura atunci se va putea seta parola care trebuie introdusa
+//Daca se apasa "C" pe tastatura atunci se va putea introduce sau reintroduce parola in cazul in care aceasta este gresita
+//Daca se apasa "D" pe tastatura atunci se va putea introduce Master-Cod-ul cu care se va putea deschide seiful chiar daca nu se stie parola in sine
 
 void setup(){
   RemoteXY_Init (); 
   
   pinMode (PIN_LED, OUTPUT);
-  pinMode(buzzer, OUTPUT);
-  noTone(buzzer);//Set buzzerPin as output
- 
   col = 0;
   lcd.begin(16, 2); 
-  //Serial.begin(9600);
-   servo.attach(38);
+  //.Serial.begin(9600);
+  servo.attach(38);
   servo.write(angle);
 }
- 
+
+void backSpace(){
+  col--;
+  lcd.setCursor(col,0);
+  lcd.print(" ");
+}
+
+void backSpace1(int i){
+  i--;
+  lcd.setCursor(i,0);
+  lcd.print(" ");
+}
+
+void verificaParola()
+{
+  int ok = 1;
+  for(int i=0;i<=5;i++)
+    if(pass[i] != mainPass[i] ){
+      lcd.setCursor(0,0);
+      lcd.print("PAROLA GRESITA");
+      lcd.setCursor(1,0);
+      lcd.print("PRESS C TO RETRY");
+      ok = 0;
+      break;
+    }
+  if (ok == 1){ 
+      while(RemoteXY.led==0){
+        lcd.setCursor(0,0);
+        lcd.print("SE ASTEAPTA");
+        delay(400);  
+      }
+      clearLCD();
+      lcd.setCursor(0,0);
+      lcd.print("PAROLA CORECTA");
+      servo.write(angle+90);
+  }
+}
+
+void clearLCD(){
+  lcd.setCursor(col,0);
+  lcd.print("                ");
+  lcd.setCursor(col,1);
+  lcd.print("                ");  
+}
+
+void clearLCD1(){
+  lcd.setCursor(1,0);
+  lcd.print("                ");
+  lcd.setCursor(0,1);
+  lcd.print("                ");  
+}
+
+void setPassword(){
+  col = 0;
+  clearLCD();
+  lcd.setCursor(col,0);
+  lcd.print("Intruduceti");
+  lcd.setCursor(col,1);
+  lcd.print("noua parola");
+  
+  for(int i = 0; i<5 ;i ++){ 
+    char key = customKeypad.getKey();
+    if (key){
+      pass[i] = key;
+   }else
+      i--;
+  }
+  clearLCD();
+  lcd.setCursor(col,0);
+  lcd.print("Parola");
+  lcd.setCursor(col,1);
+  lcd.print("Schimbata");
+}
+
+void typePassword(){
+  col = 0;
+  clearLCD();
+  lcd.setCursor(col,0);
+  lcd.print("Intruduceti");
+  lcd.setCursor(col,1);
+  lcd.print("parola");
+  for(int i = 0; i<5 ;i ++){  
+     col = i;
+     lcd.setCursor(i,0);
+    
+    char key = customKeypad.getKey();
+    if (key){
+       pass[i] = key;
+       if(pass[i] == 'A'){
+         backSpace1(i);
+         i=i-2;
+       }
+       else{
+           lcd.print(pass[i]); 
+           if(i == 0){
+                clearLCD1();
+            }  
+           delay(400);
+           lcd.setCursor(i,0);
+           lcd.print('*');
+       }
+   }else
+    i--;
+  }
+  col++;
+  verificaParola();
+}
+
 void loop(){
    RemoteXY_Handler ();
-  digitalWrite(PIN_LED, (RemoteXY.led==0)?LOW:HIGH);
-    unsigned char i, j ;
-  noTone(buzzer);
-  char customKey = customKeypad.getKey();
-   if(customKey == 'A')
-      {
-         setup();
-        }else
-  if (col != 5)
-    { 
-      if (customKey){
-        parolaIntrodusa[col] = customKey;
-        lcd.setCursor(col,0);
-        lcd.print(customKey);
-        delay(400);
-        lcd.setCursor(col,0);
-        lcd.print('*');
-        col++;
-     }
-    }
-    else
-    {
-       if(RemoteXY.led==0)
-      {
-         lcd.setCursor(0,0);
-         lcd.print("SE ASTEAPTA");
-        
-      }else
-      
-        verificaParola();
-      }
+   digitalWrite(PIN_LED, (RemoteXY.led==0)?LOW:HIGH);
+   char customKey = customKeypad.getKey();
+
+   if(customKey == 'C'){
+      typePassword();
+   }
+   if(customKey == 'B'){
+      setPassword();
+   }
+   
 }
